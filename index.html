@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Buy or Rent</title>
+<meta name="description" content="Home purchase vs. rent decision model: compare the equity you build by buying with renting and investing the difference.">
+<style>:root{color-scheme:light} body{margin:0} img{max-width:100%} [hidden]{display:none!important}</style>
+</head>
+<body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Source+Sans+3:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: masthead and verdict; assumptions (inputs) beside the summary; equity-by-years-held chart; year-by-year cash flow. Excel conventions: blue = input. */
+:root {
+  --bg: #ffffff; --paper: #ffffff; --ink: #121a26; --muted: #5b6676; --rule: #c9d0da; --hair: #e6eaef; --band: #f3f5f8;
+  --navy: #13294b; --navy-ink: #ffffff; --input: #0a3ec2; --input-bg: #f4f7ff; --neg: #a12626;
+  --buy: #13294b; --rent: #b0772b;
+  --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --sans: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141b; --paper: #141b24; --ink: #e4e9f0; --muted: #98a3b3; --rule: #364253; --hair: #232d3a; --band: #1a2330;
+  --navy: #22406e; --navy-ink: #f1f4f9; --input: #8db1ff; --input-bg: #18233a; --neg: #ef8c8c; --buy: #8db1ff; --rent: #e0a95e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f141b; --paper: #141b24; --ink: #e4e9f0; --muted: #98a3b3; --rule: #364253; --hair: #232d3a; --band: #1a2330;
+  --navy: #22406e; --navy-ink: #f1f4f9; --input: #8db1ff; --input-bg: #18233a; --neg: #ef8c8c; --buy: #8db1ff; --rent: #e0a95e; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1200px; margin-inline: auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1 { font-size: 32px; }
+.masthead { display: grid; gap: 14px; border-bottom: 3px solid var(--navy); padding-bottom: 14px; }
+.mast-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; align-items: end; }
+.org { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 2px 0 0; font-family: var(--serif); font-weight: 600; font-size: 28px; line-height: 1.15; text-wrap: balance; }
+.lede { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+.cases { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cases label { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+select, .btn, .name { font: inherit; font-size: 13px; color: var(--ink); background: var(--paper); border: 1px solid var(--rule); border-radius: 2px; padding: 5px 9px; }
+.name { width: 14rem; max-width: 100%; color: var(--input); background: var(--input-bg); }
+.btn { cursor: pointer; } .btn:hover { background: var(--band); } .btn.danger { color: var(--neg); }
+:is(select, .btn, .name, input):focus-visible { outline: 2px solid var(--input); outline-offset: 1px; }
+.confirm { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+
+.verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); border: 1px solid var(--rule); }
+.kpi { padding: 12px 14px; display: grid; gap: 4px; border-right: 1px solid var(--hair); border-bottom: 1px solid var(--hair); }
+.kpi .k { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.kpi .v { font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1.1; }
+.kpi .s { font-size: 12px; color: var(--muted); }
+.kpi.lead { background: var(--navy); color: var(--navy-ink); }
+.kpi.lead .k, .kpi.lead .s { color: var(--navy-ink); opacity: .85; }
+
+.sec { display: grid; gap: 10px; min-width: 0; }
+.sec { gap: 12px; }
+.sec h2 { margin: 0; font-family: var(--serif); font-size: 19px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  background: var(--navy); color: var(--navy-ink); padding: 9px 14px; }
+.sec h2 small { font-family: var(--sans); font-size: 12px; font-weight: 400; color: var(--navy-ink); opacity: .8; }
+.sec h2 .tab { border-color: var(--navy-ink); }
+.sec h2 .tab[aria-selected="true"] { background: var(--navy-ink); color: var(--navy); border-color: var(--navy-ink); }
+.sec h2 .tab:not([aria-selected="true"]) { background: transparent; color: var(--navy-ink); }
+.grid2 { display: grid; gap: 28px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 980px) { .grid2 { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); } }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { padding: 5px 8px; vertical-align: middle; }
+thead th { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+thead th:first-child { text-align: left; }
+tbody td { border-bottom: 1px solid var(--hair); }
+td.n { text-align: right; white-space: nowrap; }
+td.basis { color: var(--muted); font-size: 12px; }
+tr.grp td { padding-top: 7px; padding-bottom: 7px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: var(--band); border-top: 10px solid var(--paper); border-bottom: 1px solid var(--rule); }
+tbody tr.grp:first-child td { border-top-width: 0; }
+tr.sub td { font-weight: 600; border-top: 1px solid var(--ink); }
+tr.result td { font-weight: 700; background: var(--band); border-top: 1px solid var(--ink); border-bottom: 3px double var(--ink); }
+tr.ind td:first-child { padding-left: 20px; }
+td.win { color: var(--navy); }
+:root:not([data-theme="light"]) td.win { color: var(--ink); }
+.neg { color: var(--neg); }
+.in { display: flex; align-items: center; justify-content: flex-end; background: var(--input-bg); border: 1px solid var(--hair); border-radius: 2px; }
+.in span { color: var(--muted); font-size: 12px; padding: 0 4px; }
+.in input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--input); font: inherit; font-weight: 600; text-align: right; padding: 4px 6px; }
+.assump { table-layout: fixed; min-width: 400px; }
+.assump col.c-in { width: 128px; } .assump col.c-basis { width: 30%; }
+td.cell { padding-block: 3px; }
+.pair { min-width: 460px; }
+.pair th:nth-child(2), .pair th:nth-child(3) { width: 26%; }
+
+.chart-box { position: relative; }
+.chart-box svg { display: block; width: 100%; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+.legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; }
+.tip { position: absolute; pointer-events: none; background: var(--paper); border: 1px solid var(--rule); box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: 6px 9px; font-size: 12px; white-space: nowrap; }
+.tip b { display: block; margin-bottom: 2px; }
+.cf { min-width: 900px; font-size: 13px; }
+.cf th, .cf td { padding: 4px 8px; }
+.cf td:first-child, .cf th:first-child { position: sticky; left: 0; background: var(--paper); text-align: left; min-width: 210px; z-index: 1; }
+.cf tr.grp td:first-child { background: var(--band); }
+.tabs { display: flex; gap: 6px; }
+.tab { font: inherit; font-size: 13px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); padding: 5px 12px; cursor: pointer; border-radius: 2px; }
+.tab[aria-selected="true"] { background: var(--navy); color: var(--navy-ink); border-color: var(--navy); }
+.drv { min-width: 760px; }
+.drv th, .drv td { text-align: right; white-space: nowrap; padding: 6px 10px; border-bottom: 1px solid var(--hair); }
+.drv th:first-child, .drv td:first-child { text-align: left; }
+.drv td.base { font-weight: 700; background: var(--band); }
+.drv td.b { color: var(--buy); } .drv td.r { color: var(--rent); }
+.drv td.flip { font-weight: 600; color: var(--ink); }
+.drv td .v { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+tr.memo td { font-size: 12px; color: var(--muted); }
+.foot { font-size: 12px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 10px; display: grid; gap: 4px; max-width: 95ch; }
+.foot p { margin: 0; }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="mast-top">
+      <div>
+        <div class="org">Decision model</div>
+        <h1>Home Purchase vs. Rent</h1>
+        <p class="lede">Compares the equity you build by buying a home with what you build by renting and investing the money you would have put down, plus each year's savings. Change any blue cell.</p>
+      </div>
+    </div>
+    <div class="cases">
+      <label for="case">Case</label>
+      <select id="case"></select>
+      <input class="name" id="name" type="text" aria-label="Case name">
+      <span id="actions" class="cases"></span>
+    </div>
+  </header>
+
+  <section class="verdict" id="verdict" aria-label="Result"></section>
+
+  <div class="grid2">
+    <section class="sec">
+      <h2>Assumptions <small>Blue cells are inputs</small></h2>
+      <div class="scroll"><table class="assump" id="assump"></table></div>
+    </section>
+    <section class="sec">
+      <h2>Summary <small id="sum-sub">Over the hold period</small></h2>
+      <div class="scroll"><table class="pair" id="summary"></table></div>
+    </section>
+  </div>
+
+  <section class="sec">
+    <h2>Equity by years in the home <small>Accumulated equity if you buy, or rent, for that many years</small></h2>
+    <div class="legend"><span><i style="background: var(--buy)"></i>Purchase</span><span><i style="background: var(--rent)"></i>Rent</span><span id="be-note"></span></div>
+    <div class="chart-box" id="chart"></div>
+  </section>
+
+  <section class="sec">
+    <h2>What drives the decision <small>Buy minus rent equity at the hold period, changing one assumption at a time</small></h2>
+    <div class="scroll"><table class="drv" id="drivers"></table></div>
+  </section>
+
+  <section class="sec">
+    <h2>Annual cash flow <span class="tabs" role="tablist"><button type="button" class="tab" id="tab-buy" role="tab">Homeowner</button><button type="button" class="tab" id="tab-rent" role="tab">Renter</button></span></h2>
+    <div class="scroll"><table class="cf" id="cf"></table></div>
+  </section>
+
+  <footer class="foot">
+    <p>For illustration only, not financial advice. Cases you save stay in this browser.</p>
+  </footer>
+</div>
+
+<script>
+// Home purchase vs rent, year by year (years 0..30), built on the workbook's 'Cash Flow' sheet (row numbers in comments).
+// a.workbook = true reproduces the workbook exactly: a start-of-year mortgage payment (Excel PMT type 1) beside an
+// end-of-year amortization (PPMT / CUMPRINC type 0), the LTV row counted in the owner's yearly total, and the balance
+// rounded to $10. Otherwise the payment is the end-of-year payment that matches the amortization.
+// Additions to the workbook (all 0 reproduces it): a.closeCost (buyer closing costs, % of price, paid up front),
+// a.sellCost (selling costs, % of the sale price, paid at sale), a.invTax (tax on the renter's investment earnings).
+function rentBuy(a) {
+  const N = 30, Y = [...Array(N + 1).keys()];
+  const wb = !!a.workbook;
+  const r = a.rate, n = a.term, pv = a.price * a.ltv;                  // C10 = C8*C9
+  const pmt0 = r ? pv * r / (1 - Math.pow(1 + r, -n)) : pv / n;           // end-of-year payment (matches PPMT / CUMPRINC)
+  const pmt = wb ? (r ? pmt0 / (1 + r) : pmt0) : pmt0;                    // C13: the workbook's PMT(...,1) is start-of-year
+  const balAfter = (k) => r ? pv * Math.pow(1 + r, k) - pmt0 * (Math.pow(1 + r, k) - 1) / r : pv - pmt0 * k;
+  const ppmt = (k) => balAfter(k - 1) - balAfter(k);                       // PPMT(r,k,n,-pv,0,0)
+  const xround = (v, d) => { const m = Math.pow(10, d); return Math.sign(v) * Math.round(Math.abs(v) * m) / m; }; // Excel ROUND
+  const hold = a.hold, rt = a.hold;                                        // C48 = C15
+  const closeCost = +a.closeCost || 0, sellCost = +a.sellCost || 0, invTax = +a.invTax || 0;
+  const row = () => Y.map(() => 0);
+  const R = { year: Y, bal: row(), ltv: row(), close: row(), pay: row(), pmi: row(), maint: row(), tax: row(), ins: row(), hoa: row(), sale: row(), sellC: row(), payoff: row(), cf: row(),
+    value: row(), down: row(), princ: row(), appr: row(), eq: row(),
+    inv: row(), sec: row(), pet: row(), rent: row(), petRent: row(), garage: row(), rIns: row(), rMaint: row(), rInt: row(), rTax: row(), rcf: row(),
+    rDep: row(), rInit: row(), save: row(), rEarn: row(), req: row() };
+  for (const y of Y) {
+    // owner
+    R.bal[y] = y === 0 ? pv : (y <= hold ? (wb ? xround(R.bal[y - 1] - R.princ[y - 1], -1) : balAfter(Math.min(y - 1, n))) : 0); // row 10: start of year
+    if (!wb && y > n) R.bal[y] = 0;
+    const ltvNum = y <= hold ? R.bal[y] / a.price : null;                                         // row 11 ("" past the hold)
+    R.ltv[y] = ltvNum;
+    R.close[y] = y === 0 ? -a.price * closeCost : 0;
+    R.pay[y] = (y <= n && y > 0 && y <= hold) ? -pmt : 0;                                         // row 12
+    R.pmi[y] = ((ltvNum === null || ltvNum > 0.8) && y <= n && y > 0 && y <= hold) ? -a.pmi * R.bal[y] : 0; // row 13
+    const grow = (v, x) => (y > 0 && y <= hold) ? -v * Math.pow(1 + x, y - 1) : 0;
+    R.maint[y] = grow(a.maint, a.costGrowth);                                                     // row 14
+    R.value[y] = y === 0 ? a.price : (y <= hold ? R.value[y - 1] * (1 + a.appr) : 0);            // row 23
+    R.tax[y] = (y > 0 && y <= hold) ? -R.value[y] * a.taxPct : 0;                                 // row 15
+    R.ins[y] = grow(a.ins, a.costGrowth);                                                         // row 16
+    R.hoa[y] = grow(a.hoa, a.costGrowth);                                                         // row 17
+    R.sale[y] = y === hold ? a.price * Math.pow(1 + a.appr, y) : 0;                               // row 18
+    R.sellC[y] = -R.sale[y] * sellCost;
+    R.payoff[y] = (y > 0 && y === hold && y <= n) ? (wb ? xround(-balAfter(y), 0) : -balAfter(y)) : 0; // row 19 (CUMPRINC; error -> 0 past the term)
+    R.princ[y] = (y > 0 && y <= n && y <= hold) ? ppmt(y) : 0;                                    // row 25
+    R.appr[y] = (y > 0 && y <= hold) ? R.value[y] - R.value[y - 1] : 0;                           // row 26
+    R.down[y] = y === 0 ? a.price - pv : 0;                                                       // row 24
+    const ownerOps = R.pay[y] + R.pmi[y] + R.maint[y] + R.tax[y] + R.ins[y] + R.hoa[y];
+    // row 20: the workbook's SUBTOTAL(9, I11:I19) also counts the LTV row (row 11)
+    R.cf[y] = y === 0 ? -a.price + pv + R.close[0] + ownerOps + R.sale[0] + R.sellC[0] + R.payoff[0]
+      : (wb && ltvNum !== null ? ltvNum : 0) + ownerOps + R.sale[y] + R.sellC[y] + R.payoff[y];
+    R.eq[y] = y === 0 ? R.down[0] : (y <= hold ? R.eq[y - 1] + R.princ[y] + R.appr[y] + R.sellC[y] : 0); // row 27, less selling costs at sale
+    // renter
+    R.sec[y] = y === 0 ? -a.secDep : (y === rt ? a.secDep : 0);                                   // row 39
+    R.pet[y] = y === 0 ? -a.petDep : (y === rt ? a.petDep : 0);                                   // row 40
+    R.inv[y] = y === 0 ? -R.down[0] + R.close[0] - (R.sec[0] + R.pet[0]) : 0;                     // row 38: invests what the buyer paid up front
+    const rg = (v, x) => (y > 0 && y <= rt) ? -v * 12 * Math.pow(1 + x, y - 1) : 0;
+    R.rent[y] = rg(a.rent, a.rentGrowth); R.petRent[y] = rg(a.petRent, a.rentGrowth); R.garage[y] = rg(a.garage, a.rentGrowth); // rows 41-43
+    R.rIns[y] = rg(a.rentIns, a.rentCostGrowth); R.rMaint[y] = rg(a.rentMaint, a.rentCostGrowth);                            // rows 44-45
+    R.rDep[y] = y === 0 ? -(R.sec[0] + R.pet[0]) : 0;                                             // row 50
+    R.rInit[y] = y === 0 ? R.down[0] - R.close[0] - R.rDep[0] : 0;                                // row 51
+    const leaseCost = R.rent[y] + R.petRent[y] + R.garage[y] + R.rIns[y] + R.rMaint[y];
+    // row 52: what owning costs that year beyond renting (the workbook's -row 20 + sale + payoff)
+    R.save[y] = y === 0 ? 0 : leaseCost - (R.cf[y] - R.sale[y] - R.sellC[y] - R.payoff[y]);
+    R.rEarn[y] = y === 0 ? 0 : (y <= hold ? R.req[y - 1] * a.invRate : 0);                        // row 53
+    R.rTax[y] = -R.rEarn[y] * invTax;
+    R.req[y] = y === 0 ? R.rDep[0] + R.rInit[0] : (y <= hold ? R.rDep[y] + R.rInit[y] + R.save[y] + R.rEarn[y] + R.rTax[y] + R.req[y - 1] : 0); // row 54
+    R.rInt[y] = R.rEarn[y];                                                                        // row 46
+    R.rcf[y] = R.inv[y] + R.sec[y] + R.pet[y] + leaseCost + R.rInt[y] + R.rTax[y];                // row 47
+  }
+  const sum = (k, from = 0) => R[k].reduce((t, v, i) => t + (i >= from ? (v || 0) : 0), 0);
+  const buy = { upfront: -R.down[0], closing: sum('close'), carry: sum('pmi') + sum('maint') + sum('tax') + sum('ins') + sum('hoa'), interest: sum('pay') + sum('princ'),
+    principal: -sum('princ'), sale: sum('sale'), selling: sum('sellC'), payoff: sum('payoff') };
+  buy.total = buy.upfront + buy.closing + buy.carry + buy.interest + buy.principal + buy.sale + buy.selling + buy.payoff;
+  buy.eqUp = R.down[0]; buy.eqPrinc = sum('princ'); buy.eqAppr = sum('appr'); buy.eqSell = sum('sellC'); buy.equity = buy.eqUp + buy.eqPrinc + buy.eqAppr + buy.eqSell;
+  const rent = { upfront: -R.rInit[0] - R.rDep[0], lease: sum('rent') + sum('petRent') + sum('garage') + sum('rIns') + sum('rMaint'),
+    refund: sum('sec', 1) + sum('pet', 1), interest: sum('rInt'), taxes: sum('rTax') };
+  rent.total = rent.upfront + rent.lease + rent.refund + rent.interest + rent.taxes;
+  rent.eqUp = -rent.upfront; rent.eqSave = sum('save'); rent.eqInt = sum('rEarn'); rent.eqTax = sum('rTax'); rent.equity = rent.eqUp + rent.eqSave + rent.eqInt + rent.eqTax;
+  return { R, buy, rent, pmt, loan: pv, decision: buy.equity > rent.equity ? 'Purchase' : rent.equity > buy.equity ? 'Rent' : 'Even' };
+}
+if (typeof module !== 'undefined') module.exports = { rentBuy };
+
+
+// The workbook's inputs, with the corrected payment timing, transaction costs and tax on the renter's investment earnings.
+const WB_INPUTS = { price: 450000, ltv: 95, rate: 7, term: 30, pmi: 0.5, hold: 30, appr: 1, costGrowth: 1, hoa: 600, maint: 2000, taxPct: 1.8, ins: 6000,
+  rent: 2850, secDep: 5500, petDep: 0, petRent: 0, garage: 0, rentIns: 40, rentMaint: 50, rentGrowth: 2, rentCostGrowth: 2, invRate: 4.5 };
+const PRESETS = [
+  { name: 'Base case', workbook: false, ...WB_INPUTS, closeCost: 2.5, sellCost: 6, invTax: 20 },
+];
+const PCT = ['ltv', 'rate', 'pmi', 'appr', 'costGrowth', 'taxPct', 'rentGrowth', 'rentCostGrowth', 'invRate', 'closeCost', 'sellCost', 'invTax'];
+const toModel = (c) => { const a = { ...c, workbook: false }; for (const k of PCT) a[k] = (+c[k] || 0) / 100; a.hold = Math.max(1, Math.min(30, Math.round(+c.hold || 1))); a.term = Math.max(1, Math.min(30, Math.round(+c.term || 1))); return a; };
+
+const KEY = 'rent-buy-v3';
+const clone = (o) => JSON.parse(JSON.stringify(o));
+let state = { cases: clone(PRESETS), cur: 0, view: 'buy' };
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && Array.isArray(s.cases) && s.cases.length) state = { ...state, ...s }; } catch (e) {}
+state.cur = Math.min(state.cur || 0, state.cases.length - 1);
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+const C = () => state.cases[state.cur];
+
+const f0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const acct = (v) => { const r = Math.round(v || 0) || 0; return r < 0 ? '$(' + f0.format(-r) + ')' : '$' + f0.format(r); };
+const plain = (v) => { const r = Math.round(v || 0); return r === 0 ? '–' : r < 0 ? '(' + f0.format(-r) + ')' : f0.format(r); };
+const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k === 'class') e.className = v; else if (k in e) e[k] = v; else e.setAttribute(k, v); } e.append(...kids); return e; };
+
+// ---- cases ----
+let confirmDelete = false;
+function drawCases() {
+  const sel = document.getElementById('case'); sel.replaceChildren(...state.cases.map((c, i) => new Option(c.name, String(i)))); sel.value = String(state.cur);
+  document.getElementById('name').value = C().name;
+  const a = document.getElementById('actions'); a.replaceChildren();
+  const btn = (t, fn, cls = 'btn') => { const b = el('button', { type: 'button', class: cls, textContent: t }); b.addEventListener('click', fn); return b; };
+  a.append(btn('Duplicate case', () => { const c = clone(C()); c.name = C().name + ' (copy)'; state.cases.splice(state.cur + 1, 0, c); state.cur++; save(); drawAll(); }));
+  if (confirmDelete) a.append(el('span', { class: 'confirm' }, 'Delete this case?', btn('Delete', () => { state.cases.splice(state.cur, 1); state.cur = Math.max(0, state.cur - 1); confirmDelete = false; save(); drawAll(); }, 'btn danger'), btn('Keep', () => { confirmDelete = false; drawCases(); })));
+  else if (state.cases.length > 1) a.append(btn('Delete case', () => { confirmDelete = true; drawCases(); }, 'btn danger'));
+  a.append(btn('Reset cases', () => { state.cases = clone(PRESETS); state.cur = 0; confirmDelete = false; save(); drawAll(); }));
+}
+document.getElementById('case').addEventListener('change', (e) => { state.cur = +e.target.value; confirmDelete = false; save(); drawAll(); });
+document.getElementById('name').addEventListener('input', (e) => { C().name = e.target.value; save(); const o = document.getElementById('case').options[state.cur]; if (o) o.textContent = C().name; });
+
+// ---- assumptions ----
+function drawAssumptions() {
+  const c = C(), T = document.getElementById('assump'); T.replaceChildren();
+  T.append(el('colgroup', {}, el('col'), el('col', { class: 'c-in' }), el('col', { class: 'c-basis' })));
+  T.append(el('thead', {}, el('tr', {}, el('th', {}, 'Item'), el('th', {}, 'Input'), el('th', {}, 'Basis'))));
+  const b = el('tbody');
+  const grp = (t) => b.append(el('tr', { class: 'grp' }, el('td', { colSpan: 3 }, t)));
+  const row = (label, key, unit, step, basis, extra = {}) => {
+    const id = 'in-' + key;
+    // dollar amounts are text fields so they can show thousands separators; they are read back as numbers
+    const money = unit === '$';
+    const fmtMoney = (v) => (+v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+    const inp = money ? el('input', { type: 'text', id, value: fmtMoney(c[key]), inputMode: 'decimal', autocomplete: 'off' })
+      : el('input', { type: 'number', id, step: String(step), value: String(c[key]), inputMode: 'decimal', ...extra });
+    inp.addEventListener('input', () => { const v = parseFloat(money ? inp.value.replace(/[^0-9.\-]/g, '') : inp.value); c[key] = isNaN(v) ? 0 : v; changed(); });
+    if (money) inp.addEventListener('blur', () => { inp.value = fmtMoney(c[key]); });
+    const box = el('div', { class: 'in' }); if (unit === '$') box.append(el('span', {}, '$')); box.append(inp); if (unit === '%') box.append(el('span', {}, '%')); if (unit === 'yr') box.append(el('span', {}, 'yrs'));
+    b.append(el('tr', {}, el('td', {}, el('label', { htmlFor: id }, label)), el('td', { class: 'cell' }, box), el('td', { class: 'basis' }, basis)));
+  };
+  const calcRow = (label, id, basis) => b.append(el('tr', {}, el('td', {}, label), el('td', { class: 'n', id }), el('td', { class: 'basis' }, basis)));
+  grp('Purchase');
+  row('Purchase price', 'price', '$', 1000, 'Today');
+  row('Mortgage LTV', 'ltv', '%', 1, 'Loan as % of price');
+  calcRow('Mortgage amount', 'a-loan', 'Price × LTV');
+  row('Mortgage interest rate', 'rate', '%', 0.125, 'Annual, fixed');
+  row('Mortgage term', 'term', 'yr', 1, 'Up to 30', { min: '1', max: '30' });
+  calcRow('Annual mortgage payment', 'a-pmt', 'End of year, fixed');
+  row('Buying closing costs', 'closeCost', '%', 0.25, '% of price, paid at purchase');
+  row('Mortgage insurance (PMI)', 'pmi', '%', 0.05, '% of balance / yr while LTV > 80%');
+  row('Hold period', 'hold', 'yr', 1, 'Years until sale (1 to 30)', { min: '1', max: '30' });
+  row('Selling costs', 'sellCost', '%', 0.25, '% of sale price: commission, closing');
+  grp('Growth & carry costs');
+  row('Home value appreciation', 'appr', '%', 0.25, 'Per year');
+  row('Cost growth', 'costGrowth', '%', 0.25, 'Per year, owner costs');
+  row('HOA dues', 'hoa', '$', 50, 'Per year');
+  row('Maintenance', 'maint', '$', 100, 'Per year');
+  row('Property taxes', 'taxPct', '%', 0.05, '% of home value / yr');
+  row('Property insurance', 'ins', '$', 100, 'Per year');
+  grp('Renting');
+  row('Monthly rent', 'rent', '$', 25, 'Per month');
+  row('Security deposit', 'secDep', '$', 100, 'Refunded at the end');
+  row('Pet deposit', 'petDep', '$', 50, 'Refunded at the end');
+  row('Pet rent', 'petRent', '$', 5, 'Per month');
+  row('Garage rent', 'garage', '$', 5, 'Per month');
+  row("Renter's insurance", 'rentIns', '$', 5, 'Per month');
+  row('Maintenance', 'rentMaint', '$', 5, 'Per month');
+  row('Rent growth', 'rentGrowth', '%', 0.25, 'Per year: rent, pet, garage');
+  row('Cost growth', 'rentCostGrowth', '%', 0.25, "Per year: insurance, maintenance");
+  calcRow('Initial investment', 'a-inv', 'Down payment + closing costs, less deposits');
+  row('Savings investment rate', 'invRate', '%', 0.25, 'Annual return on invested savings');
+  row('Tax on investment earnings', 'invTax', '%', 1, 'Blended rate on the renter\'s earnings');
+  T.append(b);
+}
+
+// ---- results ----
+let cache = null;
+function compute() {
+  const a = toModel(C()), m = rentBuy(a);
+  const byHold = []; for (let h = 1; h <= 30; h++) { const x = rentBuy({ ...a, hold: h }); byHold.push({ h, buy: x.buy.equity, rent: x.rent.equity }); }
+  const be = byHold.find((p) => p.buy > p.rent && byHold.filter((q) => q.h >= p.h).every((q) => q.buy > q.rent));
+  return cache = { a, m, byHold, be };
+}
+function drawResults() {
+  const { a, m, byHold, be } = compute();
+  document.getElementById('a-loan').textContent = acct(m.loan);
+  document.getElementById('a-pmt').textContent = acct(m.pmt);
+  document.getElementById('a-inv').textContent = acct(m.R.rInit[0]);
+  document.getElementById('sum-sub').textContent = `Over ${a.hold} year${a.hold === 1 ? '' : 's'}`;
+  const diff = m.buy.equity - m.rent.equity;
+  const V = document.getElementById('verdict'); V.replaceChildren();
+  const k = (lab, v, s, lead) => V.append(el('div', { class: 'kpi' + (lead ? ' lead' : '') }, el('span', { class: 'k' }, lab), el('span', { class: 'v' }, v), el('span', { class: 's' }, s || '')));
+  k('Decision', m.decision === 'Even' ? 'Even' : m.decision, m.decision === 'Even' ? 'Same equity either way' : `Ahead by ${acct(Math.abs(diff))}`, true);
+  k('Equity if you buy', acct(m.buy.equity), 'Down payment + principal + appreciation');
+  k('Equity if you rent', acct(m.rent.equity), 'Invested savings + interest');
+  k('Monthly cost, year 1', acct(-(m.R.pay[1] + m.R.pmi[1] + m.R.maint[1] + m.R.tax[1] + m.R.ins[1] + m.R.hoa[1]) / 12), `Rent: ${acct(-(m.R.rent[1] + m.R.petRent[1] + m.R.garage[1] + m.R.rIns[1] + m.R.rMaint[1]) / 12)}`);
+  k('Buying pays off after', be ? `${be.h} year${be.h === 1 ? '' : 's'}` : 'Not within 30 yrs', be ? 'Hold at least this long to come out ahead' : 'Renting stays ahead at every hold period');
+
+  // summary table, as the workbook's Summary tab
+  const T = document.getElementById('summary'); T.replaceChildren();
+  T.append(el('thead', {}, el('tr', {}, el('th', {}, ''), el('th', {}, 'Purchase'), el('th', {}, 'Rent'))));
+  const b = el('tbody');
+  const grp = (t) => b.append(el('tr', { class: 'grp' }, el('td', { colSpan: 3 }, t)));
+  const line = (label, x, y, cls) => b.append(el('tr', cls ? { class: cls } : {}, el('td', {}, label), el('td', { class: 'n' + (x < -0.5 ? ' neg' : '') }, acct(x)), el('td', { class: 'n' + (y < -0.5 ? ' neg' : '') }, acct(y))));
+  grp('Cash flow');
+  line('Up-front equity', m.buy.upfront + m.buy.closing, m.rent.upfront, 'ind');
+  if (m.buy.closing) line('  of which buying closing costs', m.buy.closing, 0, 'ind memo');
+  line('Home carry cost', m.buy.carry, 0, 'ind');
+  line('Leasehold costs', 0, m.rent.lease, 'ind');
+  line('Mortgage interest', m.buy.interest, 0, 'ind');
+  line('Amortized mortgage principal', m.buy.principal, 0, 'ind');
+  line('Home sale', m.buy.sale, 0, 'ind');
+  if (m.buy.selling) line('Selling costs', m.buy.selling, 0, 'ind');
+  line('Mortgage payoff', m.buy.payoff, 0, 'ind');
+  line('Lease deposit refund', 0, m.rent.refund, 'ind');
+  line('Interest on invested capital', 0, m.rent.interest, 'ind');
+  if (m.rent.taxes) line('Tax on investment earnings', 0, m.rent.taxes, 'ind');
+  line('Total cash flow', m.buy.total, m.rent.total, 'sub');
+  grp('Equity');
+  line('Up-front equity', m.buy.eqUp, m.rent.eqUp, 'ind');
+  line('Amortized mortgage principal', m.buy.eqPrinc, 0, 'ind');
+  line('Home value appreciation', m.buy.eqAppr, 0, 'ind');
+  if (m.buy.eqSell) line('Selling costs', m.buy.eqSell, 0, 'ind');
+  line('Rental savings (loss) vs. owning', 0, m.rent.eqSave, 'ind');
+  line('Interest on invested capital', 0, m.rent.eqInt, 'ind');
+  if (m.rent.eqTax) line('Tax on investment earnings', 0, m.rent.eqTax, 'ind');
+  const tr = el('tr', { class: 'result' }, el('td', {}, 'Accumulated equity'), el('td', { class: 'n' + (m.decision === 'Purchase' ? ' win' : '') }, acct(m.buy.equity)), el('td', { class: 'n' + (m.decision === 'Rent' ? ' win' : '') }, acct(m.rent.equity)));
+  b.append(tr);
+  T.append(b);
+
+  drawChart(byHold, a.hold, be);
+  drawDrivers(a);
+  drawCF(m, a);
+}
+
+function drawChart(pts, hold, be) {
+  const box = document.getElementById('chart'); box.replaceChildren();
+  document.getElementById('be-note').textContent = be ? `Lines cross at year ${be.h}` : '';
+  const W = Math.max(320, box.clientWidth || 800), H = 280, ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Accumulated equity by years held, purchase vs rent');
+  const mk = (t, at) => { const e = document.createElementNS(ns, t); for (const [k, v] of Object.entries(at)) e.setAttribute(k, v); svg.append(e); return e; };
+  const vals = pts.flatMap((p) => [p.buy, p.rent]); let lo = Math.min(0, ...vals), hi = Math.max(...vals);
+  const step = Math.pow(10, Math.floor(Math.log10(Math.max(1, hi - lo)))) / 2; lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const ticks = []; const tstep = (hi - lo) / 5; for (let i = 0; i <= 5; i++) ticks.push(lo + tstep * i);
+  const lab = (v) => (Math.abs(v) >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M' : '$' + Math.round(v / 1e3) + 'K');
+  const meas = mk('text', { x: 0, y: -10, 'font-size': 12 }); meas.textContent = lab(hi); box.append(svg);
+  const ml = Math.ceil(meas.getComputedTextLength ? meas.getComputedTextLength() : 40) + 14; meas.remove();
+  const L = ml, R = 16, T = 12, B = 30, x = (h) => L + (h - 1) / 29 * (W - L - R), y = (v) => T + (hi - v) / (hi - lo) * (H - T - B);
+  for (const t of ticks) { mk('line', { x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: 'var(--hair)', 'stroke-width': 1 }); const e = mk('text', { x: L - 8, y: y(t) + 4, 'text-anchor': 'end', 'font-size': 12, fill: 'var(--muted)' }); e.textContent = lab(t); }
+  for (const h of [1, 5, 10, 15, 20, 25, 30]) { const e = mk('text', { x: x(h), y: H - 10, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--muted)' }); e.textContent = h + (h === 1 ? ' yr' : ''); }
+  mk('line', { x1: x(hold), x2: x(hold), y1: T, y2: H - B, stroke: 'var(--rule)', 'stroke-dasharray': '4 3' });
+  const path = (k) => pts.map((p, i) => (i ? 'L' : 'M') + x(p.h).toFixed(1) + ',' + y(p[k]).toFixed(1)).join('');
+  mk('path', { d: path('rent'), fill: 'none', stroke: 'var(--rent)', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+  mk('path', { d: path('buy'), fill: 'none', stroke: 'var(--buy)', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+  const cur = pts[hold - 1];
+  mk('circle', { cx: x(hold), cy: y(cur.buy), r: 4, fill: 'var(--buy)' }); mk('circle', { cx: x(hold), cy: y(cur.rent), r: 4, fill: 'var(--rent)' });
+  const tip = el('div', { class: 'tip' }); tip.hidden = true; box.append(tip);
+  const hl = mk('line', { x1: 0, x2: 0, y1: T, y2: H - B, stroke: 'var(--muted)', 'stroke-width': 1, visibility: 'hidden' });
+  svg.addEventListener('pointermove', (ev) => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * W / r.width, h = Math.max(1, Math.min(30, Math.round((px - L) / (W - L - R) * 29 + 1))), p = pts[h - 1];
+    hl.setAttribute('x1', x(h)); hl.setAttribute('x2', x(h)); hl.setAttribute('visibility', 'visible');
+    tip.replaceChildren(el('b', {}, `Hold ${h} year${h === 1 ? '' : 's'}`), el('div', {}, 'Purchase ' + acct(p.buy)), el('div', {}, 'Rent ' + acct(p.rent)));
+    tip.hidden = false; const tx = x(h) * r.width / W; tip.style.left = Math.min(r.width - tip.offsetWidth - 4, Math.max(0, tx + 10)) + 'px'; tip.style.top = '8px';
+  });
+  svg.addEventListener('pointerleave', () => { tip.hidden = true; hl.setAttribute('visibility', 'hidden'); });
+}
+
+// one assumption at a time: buy minus rent equity, and the value where the decision flips
+const DRIVERS = [
+  { key: 'appr', label: 'Home value appreciation', d: [-0.02, -0.01, 0, 0.01, 0.02], lo: -0.05, hi: 0.15 },
+  { key: 'rentGrowth', label: 'Rent growth', d: [-0.02, -0.01, 0, 0.01, 0.02], lo: -0.05, hi: 0.15 },
+  { key: 'invRate', label: 'Savings investment rate', d: [-0.02, -0.01, 0, 0.01, 0.02], lo: 0, hi: 0.2 },
+  { key: 'rate', label: 'Mortgage interest rate', d: [-0.02, -0.01, 0, 0.01, 0.02], lo: 0.001, hi: 0.2 },
+  { key: 'costGrowth', label: 'Owner cost growth', d: [-0.02, -0.01, 0, 0.01, 0.02], lo: -0.05, hi: 0.15 },
+  { key: 'sellCost', label: 'Selling costs', d: [-0.04, -0.02, 0, 0.02, 0.04], lo: 0, hi: 0.3 },
+  { key: 'invTax', label: 'Tax on investment earnings', d: [-0.2, -0.1, 0, 0.1, 0.2], lo: 0, hi: 0.6 },
+  { key: 'rent', label: 'Monthly rent', rel: true, d: [-0.2, -0.1, 0, 0.1, 0.2], lo: -0.8, hi: 3 },
+  { key: 'price', label: 'Purchase price', rel: true, d: [-0.2, -0.1, 0, 0.1, 0.2], lo: -0.8, hi: 3 },
+];
+const kfmt = (v) => { const x = Math.abs(v); return (x >= 1e6 ? '$' + (x / 1e6).toFixed(2) + 'M' : '$' + Math.round(x / 1e3) + 'K'); };
+function drawDrivers(a) {
+  const T = document.getElementById('drivers'); T.replaceChildren();
+  T.append(el('thead', {}, el('tr', {}, el('th', {}, 'Assumption'), el('th', {}, 'Lower'), el('th', {}, ''), el('th', {}, 'Current'), el('th', {}, ''), el('th', {}, 'Higher'), el('th', {}, 'Decision flips at'))));
+  const b = el('tbody');
+  const diffAt = (D, v) => { const m = rentBuy({ ...a, [D.key]: v }); return m.buy.equity - m.rent.equity; };
+  const valOf = (D, d) => (D.rel ? a[D.key] * (1 + d) : a[D.key] + d);
+  const show = (D, v) => (D.rel ? '$' + f0.format(Math.round(v)) : String(Math.round(v * 10000) / 100) + '%');
+  for (const D of DRIVERS) {
+    const tr = el('tr', {}, el('td', {}, D.label));
+    for (const d of D.d) {
+      const v = valOf(D, d);
+      if (!D.rel && v < D.lo - 1e-9) { tr.append(el('td', {}, '–')); continue; }
+      const x = diffAt(D, v);
+      tr.append(el('td', { class: (d === 0 ? 'base ' : '') + (x > 0 ? 'b' : 'r') }, (x > 0 ? 'Buy +' : 'Rent +') + kfmt(x), el('span', { class: 'v' }, show(D, v))));
+    }
+    // flip point: bisection on the side where the sign changes, nearest to the current value
+    const base = a[D.key], lo = D.rel ? base * (1 + D.lo) : D.lo, hi = D.rel ? base * (1 + D.hi) : D.hi;
+    const s0 = Math.sign(diffAt(D, base)); let flip = null;
+    for (const [from, to] of [[base, hi], [base, lo]]) {
+      const steps = 60; let prev = base;
+      for (let i = 1; i <= steps && flip === null; i++) {
+        const v = from + (to - from) * i / steps;
+        if (Math.sign(diffAt(D, v)) !== s0) { let x0 = prev, x1 = v; for (let k = 0; k < 40; k++) { const mid = (x0 + x1) / 2; if (Math.sign(diffAt(D, mid)) === s0) x0 = mid; else x1 = mid; } flip = (x0 + x1) / 2; }
+        prev = v;
+      }
+      if (flip !== null) break;
+    }
+    tr.append(el('td', { class: 'flip' }, flip === null ? 'No flip in a realistic range' : show(D, flip)));
+    b.append(tr);
+  }
+  T.append(b);
+}
+
+function drawCF(m, a) {
+  const T = document.getElementById('cf'); T.replaceChildren(); const R = m.R, n = a.hold;
+  document.getElementById('tab-buy').setAttribute('aria-selected', String(state.view === 'buy'));
+  document.getElementById('tab-rent').setAttribute('aria-selected', String(state.view === 'rent'));
+  const yrs = [...Array(n + 1).keys()];
+  T.append(el('thead', {}, el('tr', {}, el('th', {}, 'Year'), ...yrs.map((y) => el('th', {}, String(y))))));
+  const b = el('tbody');
+  const grp = (t) => b.append(el('tr', { class: 'grp' }, el('td', {}, t), el('td', { colSpan: n + 1 })));
+  const line = (label, arr, cls, fmt = plain) => b.append(el('tr', cls ? { class: cls } : {}, el('td', {}, label), ...yrs.map((y) => el('td', { class: 'n' + ((arr[y] || 0) < -0.5 ? ' neg' : '') }, fmt(arr[y])))));
+  if (state.view === 'buy') {
+    grp('Cash flow');
+    line('Home purchase price', yrs.map((y) => (y === 0 ? -a.price : 0))); line('Buying closing costs', R.close);
+    line('Mortgage balance', R.bal); line('Mortgage payment', R.pay); line('Mortgage insurance', R.pmi); line('Maintenance', R.maint); line('Property taxes', R.tax);
+    line('Property insurance', R.ins); line('HOA dues', R.hoa); line('Home sale', R.sale); line('Selling costs', R.sellC); line('Mortgage payoff', R.payoff);
+    line('Total cash flow', R.cf, 'sub');
+    grp('Equity');
+    line('Estimated home value', R.value); line('Down payment equity', R.down); line('Principal paid', R.princ); line('Home appreciation', R.appr); line('Selling costs', R.sellC);
+    line('Accumulated equity', R.eq, 'sub');
+  } else {
+    grp('Cash flow');
+    line('Investment', R.inv); line('Security deposit', R.sec); line('Pet deposit', R.pet); line('Rent', R.rent); line('Pet rent', R.petRent); line('Garage rent', R.garage);
+    line("Renter's insurance", R.rIns); line('Maintenance', R.rMaint); line('Investment interest earned', R.rInt); line('Tax on investment earnings', R.rTax);
+    line('Total cash flow', R.rcf, 'sub');
+    grp('Equity');
+    line('Lease deposit equity', R.rDep); line('Initial investment equity', R.rInit); line('Annual savings (loss) vs. owning', R.save); line('Interest earned on invested capital', R.rEarn); line('Tax on investment earnings', R.rTax);
+    line('Accumulated equity', R.req, 'sub');
+  }
+  T.append(b);
+}
+document.getElementById('tab-buy').addEventListener('click', () => { state.view = 'buy'; save(); drawCF(cache.m, cache.a); });
+document.getElementById('tab-rent').addEventListener('click', () => { state.view = 'rent'; save(); drawCF(cache.m, cache.a); });
+
+let tmr = null, rz = null;
+function changed() { clearTimeout(tmr); tmr = setTimeout(save, 300); drawResults(); }
+function drawAll() { drawCases(); drawAssumptions(); drawResults(); }
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => cache && drawChart(cache.byHold, cache.a.hold, cache.be), 150); });
+drawAll();
+</script>
+
+</body>
+</html>
